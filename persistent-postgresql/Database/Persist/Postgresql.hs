@@ -72,6 +72,7 @@ import qualified Blaze.ByteString.Builder.Char8 as BBB
 import Data.Text (Text)
 import Data.Aeson
 import Data.Aeson.Types (modifyFailure)
+import Control.Applicative((<|>))
 import Control.Monad (forM)
 import Control.Monad.Trans.Reader (runReaderT)
 import Control.Monad.Trans.Writer (runWriterT)
@@ -1048,7 +1049,11 @@ data PostgresConf = PostgresConf
 
 instance FromJSON PostgresConf where
     parseJSON v = modifyFailure ("Persistent: error loading PostgreSQL conf: " ++) $
-      flip (withObject "PostgresConf") v $ \o -> do
+      flip (withObject "PostgresConf") v $ \o -> (do
+        cstr     <- o .: "uri"
+        pool     <- o .: "poolsize"
+        return $ PostgresConf (T.encodeUtf8 cstr) pool
+      ) <|> do
         database <- o .: "database"
         host     <- o .: "host"
         port     <- o .:? "port" .!= 5432
